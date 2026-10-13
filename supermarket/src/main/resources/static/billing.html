@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SuperMart Billing — create bills, manage cart, and generate invoices instantly.">
+  <title>Billing — SuperMart</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+<div class="container">
+  <div id="msg" class="msg"></div>
+  <div class="grid2">
+    <div class="card">
+      <h2>Select Products</h2>
+      <input id="search" style="margin-bottom:14px" placeholder="Search product..." oninput="loadProducts()">
+      <table><thead><tr><th>Name</th><th class="num">Price</th><th class="num">Stock</th><th></th></tr></thead>
+      <tbody id="products"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Current Bill</h2>
+      <div class="form-row">
+        <input id="cname" placeholder="Customer name (optional)">
+        <input id="cphone" placeholder="Phone (optional)">
+      </div>
+      <table><thead><tr><th>Item</th><th>Qty</th><th class="num">Amount</th><th></th></tr></thead>
+      <tbody id="cart"></tbody></table>
+      <div class="form-row" style="margin-top:12px">
+        <select id="mode"><option>Cash</option><option>UPI</option><option>Card</option></select>
+        <input id="discount" type="number" min="0" step="0.01" placeholder="Discount (₹)" oninput="renderCart()">
+      </div>
+      <div class="totals">Subtotal: <span id="sub">₹0.00</span><br>GST: <span id="gst">₹0.00</span><br>
+        <span class="grand">Total: <span id="grand">₹0.00</span></span></div>
+      <br><button onclick="generateBill()">Generate Bill</button>
+      <button class="gray" onclick="cart = []; renderCart()">Clear</button>
+    </div>
+  </div>
+  <div class="card" id="invoiceBox" style="display:none">
+    <h2>Invoice</h2>
+    <div id="invoice"></div><br>
+    <div style="text-align:center"><button onclick="window.print()">🖨 Print Invoice</button></div>
+  </div>
+</div>
+<script src="js/common.js"></script>
+<script>
+  renderNav('Billing');
+  let products = [];
+  let cart = [];      // [{ product, qty }]
+
+  async function loadProducts() {
+    products = await api('/products?search=' + encodeURIComponent(document.getElementById('search').value));
+    document.getElementById('products').innerHTML = products.map(p => `<tr>
+      <td>${p.name}</td><td class="num">${money(p.price)}</td>
+      <td class="num ${p.stock < 10 ? 'low' : ''}">${p.stock}</td>
+      <td><button class="small" ${p.stock === 0 ? 'disabled' : ''} onclick="addToCart(${p.id})">Add</button></td></tr>`).join('');
+  }
+
+  function addToCart(id) {
+    const p = products.find(x => x.id === id);
+    const line = cart.find(c => c.product.id === id);
+    if (line) { if (line.qty < p.stock) line.qty++; }
+    else cart.push({ product: p, qty: 1 });
+    renderCart();
+  }
+
+  function setQty(i, v) {
+    const q = parseInt(v) || 1;
+    cart[i].qty = Math.min(Math.max(q, 1), cart[i].product.stock);
+    renderCart();
+  }
+
+  function removeLine(i) { cart.splice(i, 1); renderCart(); }
+
+  function renderCart() {
+    let sub = 0, gst = 0;
+    document.getElementById('cart').innerHTML = cart.map((c, i) => {
+      const line = c.product.price * c.qty;
+      sub += line; gst += line * c.product.gstPercent / 100;
+      return `<tr><td>${c.product.name}</td>
+        <td><input class="qty" type="number" min="1" value="${c.qty}" onchange="setQty(${i}, this.value)"></td>
+        <td class="num">${money(line)}</td>
+        <td><button class="small danger" onclick="removeLine(${i})">✕</button></td></tr>`;
+    }).join('') || '<tr><td colspan="4">No items added yet</td></tr>';
+    const disc = parseFloat(document.getElementById('discount').value) || 0;
+    document.getElementById('sub').textContent = money(sub);
+    document.getElementById('gst').textContent = money(gst);
+    document.getElementById('grand').textContent = money(sub + gst - disc);
+  }
+
+  async function generateBill() {
+    const body = {
+      customerName: document.getElementById('cname').value,
+      customerPhone: document.getElementById('cphone').value,
+      paymentMode: document.getElementById('mode').value,
+      discount: document.getElementById('discount').value || 0,
+      items: cart.map(c => ({ productId: c.product.id, quantity: c.qty }))
+    };
+    try {
+      const bill = await api('/bills', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('invoice').innerHTML = invoiceHtml(bill);
+      document.getElementById('invoiceBox').style.display = 'block';
+      showMsg('Bill #' + bill.id + ' generated successfully');
+      cart = []; ['cname', 'cphone', 'discount'].forEach(i => (document.getElementById(i).value = ''));
+      renderCart(); loadProducts();
+      document.getElementById('invoiceBox').scrollIntoView({ behavior: 'smooth' });
+    } catch (e) { showMsg(e.message, false); }
+  }
+
+  loadProducts(); renderCart();
+</script>
+</body></html>

@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supermarket Management System — Project Presentation</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ───────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter',sans-serif;background:#0a0e17;color:#e6edf3}
+
+/* ── Slide Container ────────────────────────────────── */
+.slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;padding:60px 80px;
+  opacity:0;transform:translateX(60px);transition:opacity .5s,transform .5s;
+  pointer-events:none;
+}
+.slide.active{opacity:1;transform:translateX(0);pointer-events:auto}
+.slide.exit-left{opacity:0;transform:translateX(-60px)}
+
+/* ── Progress Bar ───────────────────────────────────── */
+#progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,#4ade80,#60a5fa,#a78bfa);transition:width .4s;z-index:100;border-radius:0 4px 4px 0}
+
+/* ── Slide Counter ──────────────────────────────────── */
+#counter{position:fixed;bottom:24px;right:36px;font-size:14px;color:#8b949e;z-index:100;font-weight:500;letter-spacing:1px}
+
+/* ── Nav Arrows ─────────────────────────────────────── */
+.nav-btn{
+  position:fixed;top:50%;transform:translateY(-50%);z-index:100;
+  width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);color:#8b949e;font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .25s;
+  backdrop-filter:blur(8px);
+}
+.nav-btn:hover{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.25)}
+#prev{left:20px}
+#next{right:20px}
+
+/* ── Typography ─────────────────────────────────────── */
+.slide-title{
+  font-size:52px;font-weight:800;letter-spacing:-1.5px;line-height:1.15;
+  background:linear-gradient(135deg,#4ade80 0%,#60a5fa 50%,#a78bfa 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:12px;text-align:center;
+}
+.slide-subtitle{font-size:22px;color:#8b949e;font-weight:400;margin-bottom:32px;text-align:center;max-width:700px;line-height:1.5}
+.section-label{
+  font-size:13px;font-weight:600;letter-spacing:3px;text-transform:uppercase;
+  color:#4ade80;margin-bottom:14px;
+}
+
+h2.card-title{font-size:28px;font-weight:700;margin-bottom:18px;color:#fff;letter-spacing:-.5px}
+h3{font-size:20px;font-weight:600;margin-bottom:8px;color:#e6edf3}
+
+/* ── Layout Helpers ─────────────────────────────────── */
+.content{max-width:1000px;width:100%}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:18px}
+
+/* ── Cards ──────────────────────────────────────────── */
+.card{
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:16px;padding:28px;transition:transform .3s,border-color .3s;
+}
+.card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.15)}
+.card p,.card li{font-size:15px;line-height:1.65;color:#b0b8c4}
+.card ul{list-style:none;padding:0}
+.card li{padding:6px 0;padding-left:20px;position:relative}
+.card li::before{content:'▸';position:absolute;left:0;color:#4ade80;font-weight:700}
+
+/* ── Badges ─────────────────────────────────────────── */
+.badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:.5px}
+.badge-green{background:rgba(74,222,128,.12);color:#4ade80}
+.badge-blue{background:rgba(96,165,250,.12);color:#60a5fa}
+.badge-purple{background:rgba(167,139,250,.12);color:#a78bfa}
+.badge-pink{background:rgba(244,114,182,.12);color:#f472b6}
+.badge-orange{background:rgba(251,146,60,.12);color:#fb923c}
+
+/* ── Icons (emoji based) ────────────────────────────── */
+.icon-lg{font-size:44px;margin-bottom:14px;display:block}
+.icon-xl{font-size:72px;margin-bottom:16px;display:block}
+
+/* ── Code Block ─────────────────────────────────────── */
+.code-block{
+  background:#161b22;border:1px solid rgba(255,255,255,.06);border-radius:12px;
+  padding:20px 24px;font-family:'Fira Code','Cascadia Code',monospace;font-size:13px;
+  line-height:1.7;color:#c9d1d9;overflow-x:auto;white-space:pre;
+}
+.code-keyword{color:#ff7b72}
+.code-string{color:#a5d6ff}
+.code-comment{color:#8b949e;font-style:italic}
+.code-type{color:#d2a8ff}
+.code-annotation{color:#79c0ff}
+
+/* ── Table ──────────────────────────────────────────── */
+.api-table{width:100%;border-collapse:collapse;font-size:14px}
+.api-table th{text-align:left;padding:10px 14px;color:#4ade80;font-weight:600;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;letter-spacing:1px;text-transform:uppercase}
+.api-table td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);color:#b0b8c4}
+.api-table tr:hover td{background:rgba(255,255,255,.02)}
+.method{font-weight:700;font-family:monospace;font-size:13px}
+.method-get{color:#4ade80}
+.method-post{color:#60a5fa}
+.method-put{color:#fb923c}
+.method-del{color:#f87171}
+.method-patch{color:#a78bfa}
+.url{font-family:monospace;color:#c9d1d9;font-size:13px}
+
+/* ── ER Diagram ─────────────────────────────────────── */
+.er-box{
+  background:#161b22;border:1px solid rgba(255,255,255,.08);border-radius:14px;
+  padding:22px 28px;min-width:220px;
+}
+.er-box h3{color:#60a5fa;font-size:16px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.08)}
+.er-field{font-size:13px;color:#b0b8c4;padding:3px 0;font-family:monospace}
+.er-field .pk{color:#4ade80;font-weight:700}
+.er-field .fk{color:#fb923c;font-weight:600}
+.er-arrow{display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:24px;padding:0 12px}
+
+/* ── Flowchart ──────────────────────────────────────── */
+.flow-step{
+  display:flex;align-items:center;gap:16px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;padding:16px 20px;
+}
+.flow-num{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,#4ade80,#60a5fa);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:15px;color:#0a0e17;flex-shrink:0;
+}
+.flow-text{font-size:14px;color:#b0b8c4;line-height:1.5}
+.flow-text strong{color:#e6edf3}
+.flow-connector{text-align:center;color:#4ade80;font-size:20px;padding:4px 0}
+
+/* ── Feature Highlight ──────────────────────────────── */
+.feat-card{text-align:center;padding:24px 16px}
+.feat-card .icon-lg{margin-bottom:12px}
+.feat-card h3{font-size:16px;margin-bottom:6px}
+.feat-card p{font-size:13px;color:#8b949e;line-height:1.5}
+
+/* ── Tech Stack ─────────────────────────────────────── */
+.tech-item{text-align:center;padding:22px 14px}
+.tech-item .icon-lg{margin-bottom:10px}
+.tech-item h3{font-size:15px;margin-bottom:4px}
+.tech-item p{font-size:12px;color:#8b949e}
+
+/* ── Title Slide Glow ───────────────────────────────── */
+.glow{
+  position:absolute;width:400px;height:400px;border-radius:50%;
+  filter:blur(120px);opacity:.15;pointer-events:none;
+}
+.glow-green{background:#4ade80;top:10%;left:10%}
+.glow-blue{background:#60a5fa;bottom:10%;right:15%}
+.glow-purple{background:#a78bfa;top:40%;right:30%}
+
+/* ── Animate In ─────────────────────────────────────── */
+.slide.active .fade-up{animation:fadeUp .6s ease forwards}
+.slide.active .fade-up-d1{animation:fadeUp .6s ease .1s forwards;opacity:0}
+.slide.active .fade-up-d2{animation:fadeUp .6s ease .2s forwards;opacity:0}
+.slide.active .fade-up-d3{animation:fadeUp .6s ease .3s forwards;opacity:0}
+.slide.active .fade-up-d4{animation:fadeUp .6s ease .4s forwards;opacity:0}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Keyboard Hint ──────────────────────────────────── */
+#keys{position:fixed;bottom:24px;left:36px;font-size:12px;color:#484f58;z-index:100}
+kbd{
+  background:#21262d;border:1px solid #30363d;border-radius:5px;padding:2px 8px;
+  font-family:'Inter',sans-serif;font-size:11px;color:#8b949e;
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="counter"></div>
+<button class="nav-btn" id="prev" onclick="go(-1)">&#8249;</button>
+<button class="nav-btn" id="next" onclick="go(1)">&#8250;</button>
+<div id="keys">Navigate: <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> or <kbd>Space</kbd> &nbsp;|&nbsp; Fullscreen: <kbd>F11</kbd></div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 1 — TITLE
+     ════════════════════════════════════════════════════════ -->
+<div class="slide active" id="s1">
+  <div class="glow glow-green"></div>
+  <div class="glow glow-blue"></div>
+  <div class="glow glow-purple"></div>
+  <span class="icon-xl fade-up">&#128722;</span>
+  <h1 class="slide-title fade-up-d1">Supermarket Management System</h1>
+  <p class="slide-subtitle fade-up-d2">A Full-Stack Mini Project &mdash; Spring Boot &amp; MySQL</p>
+  <div class="fade-up-d3" style="display:flex;gap:10px;margin-top:8px">
+    <span class="badge badge-green">Java 17</span>
+    <span class="badge badge-blue">Spring Boot 3.3</span>
+    <span class="badge badge-purple">MySQL 8</span>
+    <span class="badge badge-pink">REST API</span>
+    <span class="badge badge-orange">HTML / CSS / JS</span>
+  </div>
+  <p style="margin-top:40px;font-size:14px;color:#484f58" class="fade-up-d4">Press <kbd>&#8594;</kbd> or <kbd>Space</kbd> to begin</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 2 — PROBLEM STATEMENT
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s2">
+  <div class="content">
+    <span class="section-label fade-up">Introduction</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">Problem Statement</h1>
+    <p class="slide-subtitle fade-up-d2">Small &amp; medium supermarkets still rely on manual registers, leading to&#8230;</p>
+    <div class="grid-4 fade-up-d3">
+      <div class="card feat-card">
+        <span class="icon-lg">&#128221;</span>
+        <h3>Manual Errors</h3>
+        <p>Handwritten bills cause calculation mistakes &amp; GST miscalculations</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#128230;</span>
+        <h3>Stock Mismatch</h3>
+        <p>No real-time tracking leads to overstocking or stockouts</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#128202;</span>
+        <h3>No Analytics</h3>
+        <p>Inability to track daily sales, top products, or revenue trends</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#128275;</span>
+        <h3>No Security</h3>
+        <p>Anyone can access billing and product data without authentication</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 3 — OBJECTIVE
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s3">
+  <div class="content">
+    <span class="section-label fade-up">Objective</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">What We Built</h1>
+    <p class="slide-subtitle fade-up-d2">A web-based Supermarket Management System that digitises billing, inventory, and analytics</p>
+    <div class="grid-2 fade-up-d3">
+      <div class="card">
+        <h2 class="card-title">&#127919; Goals</h2>
+        <ul>
+          <li>Automate billing with GST &amp; discount calculations</li>
+          <li>Real-time inventory tracking with auto stock reduction</li>
+          <li>Dashboard with sales charts &amp; low-stock alerts</li>
+          <li>Secure login with role-based access (Admin / Cashier)</li>
+          <li>Printable invoice generation</li>
+          <li>CSV bulk product import</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2 class="card-title">&#9989; Key Benefits</h2>
+        <ul>
+          <li>Eliminates manual calculation errors</li>
+          <li>Instant low-stock alerts (threshold: 10 units)</li>
+          <li>30-day sales trends &amp; top products analytics</li>
+          <li>Complete bill history with reprint capability</li>
+          <li>Multi-payment mode support (Cash / UPI / Card)</li>
+          <li>Responsive, modern dark-themed UI</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 4 — TECH STACK
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s4">
+  <div class="content">
+    <span class="section-label fade-up">Technology</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">Technology Stack</h1>
+    <div class="grid-2 fade-up-d2" style="gap:28px">
+      <div class="card">
+        <h2 class="card-title">&#9881;&#65039; Backend</h2>
+        <div class="grid-2" style="gap:14px;margin-top:10px">
+          <div class="tech-item"><span class="icon-lg">&#9749;</span><h3>Java 17</h3><p>Core language</p></div>
+          <div class="tech-item"><span class="icon-lg">&#127811;</span><h3>Spring Boot 3.3</h3><p>REST framework</p></div>
+          <div class="tech-item"><span class="icon-lg">&#128451;&#65039;</span><h3>Spring Data JPA</h3><p>ORM / Hibernate</p></div>
+          <div class="tech-item"><span class="icon-lg">&#128274;</span><h3>Spring Security</h3><p>Authentication</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="card-title">&#127912; Frontend &amp; Database</h2>
+        <div class="grid-2" style="gap:14px;margin-top:10px">
+          <div class="tech-item"><span class="icon-lg">&#127760;</span><h3>HTML / CSS / JS</h3><p>UI pages</p></div>
+          <div class="tech-item"><span class="icon-lg">&#128200;</span><h3>Chart.js</h3><p>Sales charts</p></div>
+          <div class="tech-item"><span class="icon-lg">&#128172;</span><h3>MySQL 8</h3><p>Relational DB</p></div>
+          <div class="tech-item"><span class="icon-lg">&#128203;</span><h3>Thymeleaf</h3><p>Login page</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="fade-up-d3" style="display:flex;gap:10px;justify-content:center;margin-top:20px">
+      <span class="badge badge-green">Maven Build</span>
+      <span class="badge badge-blue">RESTful APIs</span>
+      <span class="badge badge-purple">BCrypt Encryption</span>
+      <span class="badge badge-orange">OpenCSV Import</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 5 — ARCHITECTURE
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s5">
+  <div class="content">
+    <span class="section-label fade-up">Design</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">System Architecture</h1>
+    <p class="slide-subtitle fade-up-d2">Three-tier MVC architecture with REST API communication</p>
+    <div class="grid-3 fade-up-d3" style="gap:0">
+      <div class="card" style="text-align:center;border-radius:16px 0 0 16px;border-right:none">
+        <span class="icon-lg">&#128421;&#65039;</span>
+        <h3>Presentation Layer</h3>
+        <p style="font-size:13px;color:#8b949e;margin-top:8px">HTML / CSS / JavaScript<br>Chart.js for analytics<br>Thymeleaf login page</p>
+        <div style="margin-top:12px"><span class="badge badge-green">Frontend</span></div>
+      </div>
+      <div class="card" style="text-align:center;border-radius:0;border-left:1px solid rgba(74,222,128,.2);border-right:1px solid rgba(74,222,128,.2)">
+        <span class="icon-lg">&#9881;&#65039;</span>
+        <h3>Business Logic Layer</h3>
+        <p style="font-size:13px;color:#8b949e;margin-top:8px">Spring Boot Controllers<br>Service layer (BillService)<br>Spring Security</p>
+        <div style="margin-top:12px"><span class="badge badge-blue">REST API</span></div>
+      </div>
+      <div class="card" style="text-align:center;border-radius:0 16px 16px 0;border-left:none">
+        <span class="icon-lg">&#128452;&#65039;</span>
+        <h3>Data Access Layer</h3>
+        <p style="font-size:13px;color:#8b949e;margin-top:8px">Spring Data JPA<br>MySQL Database<br>Auto DDL (Hibernate)</p>
+        <div style="margin-top:12px"><span class="badge badge-purple">JPA + MySQL</span></div>
+      </div>
+    </div>
+    <div class="fade-up-d4" style="text-align:center;margin-top:16px;font-size:13px;color:#8b949e">
+      Browser &#8594; <span style="color:#4ade80">fetch()</span> &#8594; REST Controller &#8594; Service &#8594; Repository &#8594; MySQL
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 6 — PROJECT STRUCTURE
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s6">
+  <div class="content">
+    <span class="section-label fade-up">Source Code</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">Project Structure</h1>
+    <div class="grid-2 fade-up-d2" style="gap:28px">
+      <div class="code-block" style="font-size:13px;line-height:1.8"><span class="code-comment">supermarket/</span>
+&#9500;&#9472;&#9472; pom.xml
+&#9500;&#9472;&#9472; database/supermarket.sql
+&#9492;&#9472;&#9472; src/main/
+    &#9500;&#9472;&#9472; java/com/supermarket/
+    &#9474;   &#9500;&#9472;&#9472; <span class="code-type">SupermarketApplication.java</span>
+    &#9474;   &#9500;&#9472;&#9472; <span class="code-keyword">model/</span>
+    &#9474;   &#9474;   &#9500;&#9472;&#9472; Product.java
+    &#9474;   &#9474;   &#9500;&#9472;&#9472; Bill.java
+    &#9474;   &#9474;   &#9492;&#9472;&#9472; BillItem.java
+    &#9474;   &#9500;&#9472;&#9472; <span class="code-keyword">repository/</span>
+    &#9474;   &#9500;&#9472;&#9472; <span class="code-keyword">dto/</span>
+    &#9474;   &#9500;&#9472;&#9472; <span class="code-keyword">service/</span>
+    &#9474;   &#9500;&#9472;&#9472; <span class="code-keyword">security/</span>
+    &#9474;   &#9492;&#9472;&#9472; <span class="code-keyword">controller/</span>
+    &#9474;       &#9500;&#9472;&#9472; ProductController.java
+    &#9474;       &#9500;&#9472;&#9472; BillController.java
+    &#9474;       &#9500;&#9472;&#9472; DashboardController.java
+    &#9474;       &#9500;&#9472;&#9472; CsvImportController.java
+    &#9474;       &#9492;&#9472;&#9472; LoginController.java
+    &#9492;&#9472;&#9472; resources/
+        &#9500;&#9472;&#9472; application.properties
+        &#9492;&#9472;&#9472; static/ <span class="code-comment">(HTML, CSS, JS)</span></div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <h2 class="card-title" style="font-size:20px">&#128193; Package Overview</h2>
+          <ul>
+            <li><strong>model/</strong> &#8212; JPA entity classes mapped to DB tables</li>
+            <li><strong>repository/</strong> &#8212; Spring Data JPA interfaces for CRUD</li>
+            <li><strong>dto/</strong> &#8212; Data Transfer Object for billing requests</li>
+            <li><strong>service/</strong> &#8212; Core business logic (GST, stock, totals)</li>
+            <li><strong>security/</strong> &#8212; Spring Security configuration</li>
+            <li><strong>controller/</strong> &#8212; REST API endpoints</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2 class="card-title" style="font-size:20px">&#128196; Frontend Pages</h2>
+          <ul>
+            <li><strong>index.html</strong> &#8212; Dashboard with charts</li>
+            <li><strong>products.html</strong> &#8212; Product management (CRUD)</li>
+            <li><strong>billing.html</strong> &#8212; Cart-based billing system</li>
+            <li><strong>bills.html</strong> &#8212; Bill history &amp; reprint</li>
+            <li><strong>reports.html</strong> &#8212; Sales &amp; inventory reports</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 7 — DATABASE DESIGN (ER)
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s7">
+  <div class="content">
+    <span class="section-label fade-up">Database</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">Database Design</h1>
+    <p class="slide-subtitle fade-up-d2">3 tables in MySQL &mdash; <code style="color:#60a5fa">supermarket_db</code></p>
+    <div style="display:flex;align-items:flex-start;justify-content:center;gap:0" class="fade-up-d3">
+      <div class="er-box">
+        <h3>&#128230; products</h3>
+        <div class="er-field"><span class="pk">PK</span> id (BIGINT)</div>
+        <div class="er-field">name (VARCHAR)</div>
+        <div class="er-field">category (VARCHAR)</div>
+        <div class="er-field">price (DECIMAL)</div>
+        <div class="er-field">stock (INT)</div>
+        <div class="er-field">gst_percent (DECIMAL)</div>
+        <div class="er-field">expiry_date (DATE)</div>
+      </div>
+      <div class="er-arrow">&#8592;</div>
+      <div class="er-box" style="border-color:rgba(96,165,250,.3)">
+        <h3>&#129534; bills</h3>
+        <div class="er-field"><span class="pk">PK</span> id (BIGINT)</div>
+        <div class="er-field">bill_date (DATETIME)</div>
+        <div class="er-field">customer_name (VARCHAR)</div>
+        <div class="er-field">customer_phone (VARCHAR)</div>
+        <div class="er-field">payment_mode (VARCHAR)</div>
+        <div class="er-field">subtotal (DECIMAL)</div>
+        <div class="er-field">gst_amount (DECIMAL)</div>
+        <div class="er-field">discount (DECIMAL)</div>
+        <div class="er-field">grand_total (DECIMAL)</div>
+      </div>
+      <div class="er-arrow">&#8594;</div>
+      <div class="er-box" style="border-color:rgba(167,139,250,.3)">
+        <h3>&#128203; bill_items</h3>
+        <div class="er-field"><span class="pk">PK</span> id (BIGINT)</div>
+        <div class="er-field"><span class="fk">FK</span> bill_id (BIGINT)</div>
+        <div class="er-field">product_id (BIGINT)</div>
+        <div class="er-field">product_name (VARCHAR)</div>
+        <div class="er-field">price (DECIMAL)</div>
+        <div class="er-field">gst_percent (DECIMAL)</div>
+        <div class="er-field">quantity (INT)</div>
+        <div class="er-field">line_total (DECIMAL)</div>
+      </div>
+    </div>
+    <div class="fade-up-d4" style="text-align:center;margin-top:18px;font-size:13px;color:#8b949e">
+      <span class="badge badge-green">One-to-Many</span> &nbsp; Bill &#8594; BillItems &nbsp; | &nbsp; Auto-created by Hibernate (<code>ddl-auto=update</code>)
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 8 — REST API
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s8">
+  <div class="content">
+    <span class="section-label fade-up">API Layer</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">REST API Endpoints</h1>
+    <div class="card fade-up-d2" style="padding:0;overflow:hidden">
+      <table class="api-table">
+        <thead>
+          <tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="method method-get">GET</span></td><td class="url">/api/products?search=&amp;category=</td><td>List / search / filter products</td></tr>
+          <tr><td><span class="method method-post">POST</span></td><td class="url">/api/products</td><td>Add a new product</td></tr>
+          <tr><td><span class="method method-put">PUT</span></td><td class="url">/api/products/{id}</td><td>Update product details</td></tr>
+          <tr><td><span class="method method-del">DELETE</span></td><td class="url">/api/products/{id}</td><td>Delete a product</td></tr>
+          <tr><td><span class="method method-patch">PATCH</span></td><td class="url">/api/products/{id}/restock</td><td>Restock a product</td></tr>
+          <tr><td><span class="method method-post">POST</span></td><td class="url">/api/products/import</td><td>Bulk import via CSV</td></tr>
+          <tr><td><span class="method method-post">POST</span></td><td class="url">/api/bills</td><td>Create a new bill</td></tr>
+          <tr><td><span class="method method-get">GET</span></td><td class="url">/api/bills</td><td>List all bills</td></tr>
+          <tr><td><span class="method method-get">GET</span></td><td class="url">/api/bills/{id}</td><td>Get single bill + items</td></tr>
+          <tr><td><span class="method method-get">GET</span></td><td class="url">/api/dashboard</td><td>Dashboard statistics</td></tr>
+          <tr><td><span class="method method-get">GET</span></td><td class="url">/api/dashboard/chart</td><td>30-day sales chart data</td></tr>
+          <tr><td><span class="method method-get">GET</span></td><td class="url">/api/dashboard/top-products</td><td>Top 5 products by revenue</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 9 — MODULES / FEATURES
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s9">
+  <div class="content">
+    <span class="section-label fade-up">Features</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">System Modules</h1>
+    <div class="grid-3 fade-up-d2" style="gap:20px">
+      <div class="card feat-card">
+        <span class="icon-lg">&#128272;</span>
+        <h3>Login &amp; Security</h3>
+        <p>Spring Security with form login, BCrypt passwords, role-based access (Admin/Cashier), remember-me</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#127968;</span>
+        <h3>Dashboard</h3>
+        <p>Today's sales, bill count, total products, 30-day sales line chart, top 5 products bar chart, low-stock alerts</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#128230;</span>
+        <h3>Product Management</h3>
+        <p>Add / Edit / Delete products, search &amp; category filter, restock, CSV bulk import, expiry date tracking</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#128722;</span>
+        <h3>Billing System</h3>
+        <p>Cart-based billing, auto GST calculation, discount support, multi-payment (Cash/UPI/Card), auto stock reduction</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#129534;</span>
+        <h3>Bill History</h3>
+        <p>View all past bills, search by customer, view itemized details, reprint invoices anytime</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#128202;</span>
+        <h3>Reports</h3>
+        <p>Sales analytics, inventory reports, revenue trends with interactive Chart.js visualizations</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 10 — BILLING FLOW
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s10">
+  <div class="content">
+    <span class="section-label fade-up">Workflow</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">Billing Process Flow</h1>
+    <div class="grid-2 fade-up-d2" style="gap:28px">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="flow-step"><div class="flow-num">1</div><div class="flow-text"><strong>Search Product</strong> &#8212; Cashier searches by name; product list loads via API</div></div>
+        <div class="flow-connector">&#8595;</div>
+        <div class="flow-step"><div class="flow-num">2</div><div class="flow-text"><strong>Add to Cart</strong> &#8212; Select product, enter quantity; line total calculated instantly</div></div>
+        <div class="flow-connector">&#8595;</div>
+        <div class="flow-step"><div class="flow-num">3</div><div class="flow-text"><strong>Auto GST Calculation</strong> &#8212; GST computed per item based on stored gst_percent</div></div>
+        <div class="flow-connector">&#8595;</div>
+        <div class="flow-step"><div class="flow-num">4</div><div class="flow-text"><strong>Apply Discount</strong> &#8212; Optional flat discount subtracted from grand total</div></div>
+        <div class="flow-connector">&#8595;</div>
+        <div class="flow-step"><div class="flow-num">5</div><div class="flow-text"><strong>Generate Bill</strong> &#8212; POST /api/bills &#8594; stock reduced &#8594; bill saved &#8594; invoice printed</div></div>
+      </div>
+      <div class="card">
+        <h2 class="card-title" style="font-size:20px">&#128161; Key Logic &#8212; BillService.java</h2>
+        <div class="code-block" style="font-size:12px;line-height:1.7"><span class="code-annotation">@Transactional</span>
+<span class="code-keyword">public</span> <span class="code-type">Bill</span> createBill(<span class="code-type">BillRequest</span> req) {
+  <span class="code-comment">// Validate cart is not empty</span>
+  <span class="code-keyword">for</span> (item : req.items()) {
+    Product p = productRepo.findById(id);
+    <span class="code-comment">// Check stock availability</span>
+    p.setStock(p.getStock() - qty);
+
+    <span class="code-comment">// Calculate line total &amp; GST</span>
+    line = price x quantity;
+    gst  = line x gstPercent / 100;
+  }
+  grandTotal = subtotal + gstTotal - discount;
+  <span class="code-keyword">return</span> billRepo.save(bill);
+}</div>
+        <p style="margin-top:12px;font-size:13px;color:#8b949e">
+          &#10003; Entire operation is <strong style="color:#4ade80">@Transactional</strong><br>
+          &#10003; Stock &amp; bill saved atomically &#8212; no partial updates<br>
+          &#10003; Validates stock, quantity &amp; discount
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 11 — SECURITY
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s11">
+  <div class="content">
+    <span class="section-label fade-up">Security</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">Authentication &amp; Authorization</h1>
+    <div class="grid-2 fade-up-d2" style="gap:28px">
+      <div class="card">
+        <h2 class="card-title" style="font-size:20px">&#128274; Spring Security Setup</h2>
+        <ul>
+          <li><strong>Form-based login</strong> with custom Thymeleaf login page</li>
+          <li><strong>BCrypt</strong> password encoding (industry standard)</li>
+          <li><strong>CSRF protection</strong> enabled for form endpoints</li>
+          <li><strong>CSRF disabled</strong> for /api/** (JS fetch calls)</li>
+          <li><strong>Remember Me</strong> cookie &#8212; 7-day validity</li>
+          <li><strong>Session management</strong> with JSESSIONID cookie cleanup on logout</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2 class="card-title" style="font-size:20px">&#128101; Role-Based Access</h2>
+        <div style="margin-top:10px">
+          <div style="display:flex;gap:12px;margin-bottom:16px">
+            <span class="badge badge-green" style="font-size:14px;padding:8px 18px">ADMIN</span>
+            <span class="badge badge-blue" style="font-size:14px;padding:8px 18px">CASHIER</span>
+          </div>
+          <table class="api-table" style="font-size:13px">
+            <thead><tr><th>Resource</th><th>Admin</th><th>Cashier</th></tr></thead>
+            <tbody>
+              <tr><td>Dashboard</td><td style="color:#4ade80">&#10003;</td><td style="color:#4ade80">&#10003;</td></tr>
+              <tr><td>Products CRUD</td><td style="color:#4ade80">&#10003;</td><td style="color:#4ade80">&#10003;</td></tr>
+              <tr><td>Billing</td><td style="color:#4ade80">&#10003;</td><td style="color:#4ade80">&#10003;</td></tr>
+              <tr><td>Bill History</td><td style="color:#4ade80">&#10003;</td><td style="color:#4ade80">&#10003;</td></tr>
+              <tr><td>Reports</td><td style="color:#4ade80">&#10003;</td><td style="color:#4ade80">&#10003;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 12 — UI SCREENSHOTS
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s12">
+  <div class="content">
+    <span class="section-label fade-up">User Interface</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">Application Pages</h1>
+    <p class="slide-subtitle fade-up-d2">Modern dark-themed UI with responsive design</p>
+    <div class="grid-2 fade-up-d3" style="gap:20px">
+      <div class="card" style="text-align:center;padding:30px">
+        <span class="icon-xl">&#127968;</span>
+        <h3>Dashboard</h3>
+        <p style="font-size:13px;color:#8b949e;margin-top:8px">Stat cards &#183; Sales line chart &#183; Top products bar chart &#183; Low stock table</p>
+        <div style="margin-top:12px"><span class="badge badge-green">Chart.js Visualizations</span></div>
+      </div>
+      <div class="card" style="text-align:center;padding:30px">
+        <span class="icon-xl">&#128230;</span>
+        <h3>Product Management</h3>
+        <p style="font-size:13px;color:#8b949e;margin-top:8px">Search bar &#183; Category filter &#183; Add/Edit modal &#183; Restock &#183; CSV import</p>
+        <div style="margin-top:12px"><span class="badge badge-blue">Full CRUD Operations</span></div>
+      </div>
+      <div class="card" style="text-align:center;padding:30px">
+        <span class="icon-xl">&#128722;</span>
+        <h3>Billing Page</h3>
+        <p style="font-size:13px;color:#8b949e;margin-top:8px">Product search &#183; Cart table &#183; GST breakdown &#183; Payment mode &#183; Print invoice</p>
+        <div style="margin-top:12px"><span class="badge badge-purple">Auto GST + Discount</span></div>
+      </div>
+      <div class="card" style="text-align:center;padding:30px">
+        <span class="icon-xl">&#129534;</span>
+        <h3>Bill History</h3>
+        <p style="font-size:13px;color:#8b949e;margin-top:8px">All bills list &#183; View details &#183; Item breakdown &#183; Reprint capability</p>
+        <div style="margin-top:12px"><span class="badge badge-orange">Full History Search</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 13 — HOW TO RUN
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s13">
+  <div class="content">
+    <span class="section-label fade-up">Setup</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">How to Run the Project</h1>
+    <div class="grid-2 fade-up-d2" style="gap:28px">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <h2 class="card-title" style="font-size:20px">&#128203; Prerequisites</h2>
+          <ul>
+            <li>JDK 17 or newer</li>
+            <li>MySQL 8 (running on port 3306)</li>
+            <li>VS Code with Java Extension Pack</li>
+            <li>Maven (bundled with Spring Boot)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2 class="card-title" style="font-size:20px">&#128273; Default Credentials</h2>
+          <div style="display:flex;gap:12px;margin-top:10px">
+            <div style="flex:1;background:#161b22;border-radius:10px;padding:14px;text-align:center">
+              <p style="font-size:12px;color:#8b949e;margin-bottom:6px">ADMIN</p>
+              <p style="font-size:14px;color:#4ade80;font-family:monospace">Harshad / 12345678</p>
+            </div>
+            <div style="flex:1;background:#161b22;border-radius:10px;padding:14px;text-align:center">
+              <p style="font-size:12px;color:#8b949e;margin-bottom:6px">CASHIER</p>
+              <p style="font-size:14px;color:#60a5fa;font-family:monospace">cashier / cashier123</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="flow-step"><div class="flow-num">1</div><div class="flow-text"><strong>Open folder</strong> in VS Code: <code>supermarket/</code></div></div>
+        <div class="flow-connector">&#8595;</div>
+        <div class="flow-step"><div class="flow-num">2</div><div class="flow-text"><strong>Set MySQL password</strong> in <code>application.properties</code></div></div>
+        <div class="flow-connector">&#8595;</div>
+        <div class="flow-step"><div class="flow-num">3</div><div class="flow-text"><strong>Run</strong> <code>SupermarketApplication.java</code> or <code>mvn spring-boot:run</code></div></div>
+        <div class="flow-connector">&#8595;</div>
+        <div class="flow-step"><div class="flow-num">4</div><div class="flow-text"><strong>Open browser:</strong> <code style="color:#4ade80">http://localhost:8080</code></div></div>
+        <div class="flow-connector">&#8595;</div>
+        <div class="flow-step"><div class="flow-num">5</div><div class="flow-text"><strong>Optional:</strong> Run <code>supermarket.sql</code> for 10 sample products</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 14 — FUTURE SCOPE
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s14">
+  <div class="content">
+    <span class="section-label fade-up">Future</span>
+    <h1 class="slide-title fade-up-d1" style="font-size:40px">Future Enhancements</h1>
+    <div class="grid-3 fade-up-d2" style="gap:20px">
+      <div class="card feat-card">
+        <span class="icon-lg">&#128241;</span>
+        <h3>Barcode Scanner</h3>
+        <p>Integrate camera-based barcode scanning for faster product lookup at checkout</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#128179;</span>
+        <h3>Payment Gateway</h3>
+        <p>Integrate Razorpay/Stripe for real online payments &amp; digital receipts</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#128231;</span>
+        <h3>Email / SMS Receipts</h3>
+        <p>Send digital bills to customer via email or SMS using Twilio/SMTP</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#127978;</span>
+        <h3>Multi-Store Support</h3>
+        <p>Manage multiple store branches from a single centralized admin panel</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#129302;</span>
+        <h3>AI Demand Forecasting</h3>
+        <p>Predict future demand using ML models to optimize stock ordering</p>
+      </div>
+      <div class="card feat-card">
+        <span class="icon-lg">&#128242;</span>
+        <h3>Mobile App (PWA)</h3>
+        <p>Convert to Progressive Web App for tablet/mobile cashier terminals</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 15 — CONCLUSION + THANK YOU
+     ════════════════════════════════════════════════════════ -->
+<div class="slide" id="s15">
+  <div class="glow glow-green"></div>
+  <div class="glow glow-blue"></div>
+  <div class="glow glow-purple"></div>
+  <span class="icon-xl fade-up">&#127891;</span>
+  <h1 class="slide-title fade-up-d1">Conclusion</h1>
+  <p class="slide-subtitle fade-up-d2" style="max-width:650px">
+    The Supermarket Management System successfully digitises billing, inventory tracking, and sales analytics
+    into a single, secure web application using modern Java &amp; web technologies.
+  </p>
+  <div class="fade-up-d3" style="display:flex;gap:12px;margin-bottom:40px">
+    <span class="badge badge-green" style="padding:8px 20px">&#10003; Automated Billing</span>
+    <span class="badge badge-blue" style="padding:8px 20px">&#10003; Real-time Stock</span>
+    <span class="badge badge-purple" style="padding:8px 20px">&#10003; Sales Analytics</span>
+    <span class="badge badge-pink" style="padding:8px 20px">&#10003; Secure Login</span>
+  </div>
+  <h1 class="slide-title fade-up-d4" style="font-size:48px;margin-top:0">Thank You!</h1>
+  <p class="fade-up-d4" style="font-size:18px;color:#8b949e;margin-top:10px">Questions?</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     NAVIGATION SCRIPT
+     ════════════════════════════════════════════════════════ -->
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+function show(idx) {
+  slides.forEach((s, i) => {
+    s.classList.remove('active', 'exit-left');
+    if (i < idx) s.classList.add('exit-left');
+  });
+  slides[idx].classList.add('active');
+  current = idx;
+  document.getElementById('progress').style.width = ((idx + 1) / total * 100) + '%';
+  document.getElementById('counter').textContent = (idx + 1) + ' / ' + total;
+  document.getElementById('prev').style.opacity = idx === 0 ? '.3' : '1';
+  document.getElementById('next').style.opacity = idx === total - 1 ? '.3' : '1';
+}
+
+function go(dir) {
+  const next = current + dir;
+  if (next >= 0 && next < total) show(next);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); go(1); }
+  if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); go(-1); }
+  if (e.key === 'Home') { e.preventDefault(); show(0); }
+  if (e.key === 'End') { e.preventDefault(); show(total - 1); }
+});
+
+// Touch swipe support
+let touchX = 0;
+document.addEventListener('touchstart', e => touchX = e.touches[0].clientX);
+document.addEventListener('touchend', e => {
+  const diff = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(diff) > 50) go(diff < 0 ? 1 : -1);
+});
+
+show(0);
+</script>
+</body>
+</html>

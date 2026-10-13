@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SuperMart Reports — view sales summaries, charts and export bills.">
+  <title>Reports — SuperMart</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+    }
+    .filter-bar label {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-muted);
+    }
+    .filter-bar input,
+    .filter-bar select {
+      padding: 9px 13px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      min-width: 140px;
+    }
+    .filter-bar input:focus,
+    .filter-bar select:focus {
+      border-color: var(--green-400);
+      box-shadow: 0 0 0 3px rgba(74,222,128,.12);
+    }
+    .filter-actions { display: flex; gap: 10px; margin-left: auto; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .sum-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .sum-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--green-400), #60a5fa);
+    }
+    .sum-card small { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+    .sum-card h3    { font-size: 26px; font-weight: 800; color: var(--text); margin: 6px 0 0; }
+    .sum-card .sc-icon { font-size: 28px; position: absolute; right: 16px; top: 16px; opacity: .25; }
+
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 720px) { .charts-row { grid-template-columns: 1fr; } }
+
+    .tbl-wrap { overflow-x: auto; }
+    #report-table { width: 100%; }
+    #report-table td, #report-table th { white-space: nowrap; }
+    .total-row td { font-weight: 700; color: var(--green-400); }
+
+    .empty-msg {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 36px 0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+<nav id="nav"></nav>
+<div class="container">
+  <h2>Reports</h2>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <label>From Date
+      <input type="date" id="fromDate">
+    </label>
+    <label>To Date
+      <input type="date" id="toDate">
+    </label>
+    <label>Customer
+      <input type="text" id="custFilter" placeholder="Any customer">
+    </label>
+    <label>Payment Mode
+      <select id="modeFilter">
+        <option value="">All Modes</option>
+        <option value="Cash">Cash</option>
+        <option value="UPI">UPI</option>
+        <option value="Card">Card</option>
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button class="btn" id="btnApply">Apply</button>
+      <button class="btn gray" id="btnReset">Reset</button>
+      <button class="btn" id="btnExport">Export CSV</button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-grid">
+    <div class="sum-card">
+      <span class="sc-icon">&#x1F4B0;</span>
+      <small>Total Revenue</small>
+      <h3 id="sc-revenue">&#x20B9;0.00</h3>
+    </div>
+    <div class="sum-card">
+      <span class="sc-icon">&#x1F9FE;</span>
+      <small>No. of Bills</small>
+      <h3 id="sc-bills">0</h3>
+    </div>
+    <div class="sum-card">
+      <span class="sc-icon">&#x1F4E6;</span>
+      <small>Items Sold</small>
+      <h3 id="sc-items">0</h3>
+    </div>
+    <div class="sum-card">
+      <span class="sc-icon">&#x1F4B3;</span>
+      <small>Avg Bill Value</small>
+      <h3 id="sc-avg">&#x20B9;0.00</h3>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="charts-row">
+    <div class="card" style="min-height:260px">
+      <h2 style="margin-bottom:12px">Daily Revenue</h2>
+      <div style="position:relative;height:200px">
+        <canvas id="revChart"></canvas>
+        <p id="noRevData" style="display:none" class="empty-msg">No data for this period.</p>
+      </div>
+    </div>
+    <div class="card" style="min-height:260px">
+      <h2 style="margin-bottom:12px">Payment Breakdown</h2>
+      <div style="position:relative;height:200px">
+        <canvas id="payChart"></canvas>
+        <p id="noPayData" style="display:none" class="empty-msg">No data for this period.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bills Table -->
+  <div class="card">
+    <h2 style="margin-bottom:16px">Bill Details</h2>
+    <div class="tbl-wrap">
+      <table id="report-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date &amp; Time</th>
+            <th>Customer</th>
+            <th>Payment</th>
+            <th class="num">Subtotal</th>
+            <th class="num">GST</th>
+            <th class="num">Discount</th>
+            <th class="num">Grand Total</th>
+          </tr>
+        </thead>
+        <tbody id="report-body">
+          <tr><td colspan="8" class="empty-msg">Loading...</td></tr>
+        </tbody>
+        <tfoot id="report-foot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+  renderNav('&#x1F4CA; Reports');
+  document.getElementById('nav').insertAdjacentHTML('beforeend',
+    '<a href="/logout" style="margin-left:auto;color:#f87171" title="Logout">&#x23FB; Logout</a>');
+
+  let revChartInst = null;
+  let payChartInst = null;
+
+  const GRID  = 'rgba(255,255,255,0.06)';
+  const LABEL = '#8b949e';
+  Chart.defaults.color = LABEL;
+  Chart.defaults.font.family = "'Inter','Segoe UI',sans-serif";
+
+  // Default: last 30 days
+  const today = new Date();
+  const d30   = new Date(); d30.setDate(today.getDate() - 29);
+  document.getElementById('toDate').value   = today.toISOString().slice(0,10);
+  document.getElementById('fromDate').value = d30.toISOString().slice(0,10);
+
+  function buildQuery() {
+    const p = new URLSearchParams();
+    const from = document.getElementById('fromDate').value;
+    const to   = document.getElementById('toDate').value;
+    const cust = document.getElementById('custFilter').value.trim();
+    const mode = document.getElementById('modeFilter').value;
+    if (from) p.set('from', from);
+    if (to)   p.set('to',   to);
+    if (cust) p.set('customer', cust);
+    if (mode) p.set('mode', mode);
+    return p.toString();
+  }
+
+  function buildRevChart(bills) {
+    const map = {};
+    bills.forEach(b => {
+      const d = b.billDate.slice(0,10);
+      map[d] = (map[d] || 0) + b.grandTotal;
+    });
+    const labels = Object.keys(map).sort();
+    const data   = labels.map(k => map[k]);
+
+    document.getElementById('revChart').style.display  = labels.length ? '' : 'none';
+    document.getElementById('noRevData').style.display = labels.length ? 'none' : 'block';
+    if (!labels.length) return;
+
+    if (revChartInst) revChartInst.destroy();
+    revChartInst = new Chart(document.getElementById('revChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Revenue (Rs)', data,
+          borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.08)',
+          borderWidth: 2.5, pointBackgroundColor: '#4ade80',
+          pointRadius: 4, tension: 0.4, fill: true,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ' Rs' + Number(ctx.raw).toFixed(2) } }
+        },
+        scales: {
+          x: { grid: { color: GRID }, ticks: { maxTicksLimit: 8,
+            callback: function(val) {
+              const d = new Date(this.getLabelForValue(val));
+              return d.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+            }
+          }},
+          y: { grid: { color: GRID }, ticks: { callback: v => 'Rs' + v } }
+        }
+      }
+    });
+  }
+
+  function buildPayChart(bills) {
+    const counts = {};
+    bills.forEach(b => {
+      const m = b.paymentMode || 'Cash';
+      counts[m] = (counts[m] || 0) + b.grandTotal;
+    });
+    const labels = Object.keys(counts);
+    const data   = labels.map(k => counts[k]);
+    const COLORS = ['#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa'];
+
+    document.getElementById('payChart').style.display  = labels.length ? '' : 'none';
+    document.getElementById('noPayData').style.display = labels.length ? 'none' : 'block';
+    if (!labels.length) return;
+
+    if (payChartInst) payChartInst.destroy();
+    payChartInst = new Chart(document.getElementById('payChart'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: COLORS.slice(0, labels.length).map(c => c + 'cc'),
+          borderColor: COLORS.slice(0, labels.length),
+          borderWidth: 1.5,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 14, boxWidth: 12 } },
+          tooltip: { callbacks: { label: ctx => ' Rs' + Number(ctx.raw).toFixed(2) } }
+        }
+      }
+    });
+  }
+
+  function renderTable(bills) {
+    const tbody = document.getElementById('report-body');
+    const tfoot = document.getElementById('report-foot');
+
+    if (!bills.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">No bills found for the selected filters.</td></tr>';
+      tfoot.innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = bills.map(b =>
+      '<tr>' +
+        '<td><strong>#' + b.id + '</strong></td>' +
+        '<td>' + fmtDate(b.billDate) + '</td>' +
+        '<td>' + (b.customerName || '—') + '</td>' +
+        '<td>' + payBadge(b.paymentMode) + '</td>' +
+        '<td class="num">' + money(b.subtotal) + '</td>' +
+        '<td class="num">' + money(b.gstAmount) + '</td>' +
+        '<td class="num">' + money(b.discount) + '</td>' +
+        '<td class="num"><strong>' + money(b.grandTotal) + '</strong></td>' +
+      '</tr>'
+    ).join('');
+
+    const totalRev  = bills.reduce((s, b) => s + b.grandTotal, 0);
+    const totalGST  = bills.reduce((s, b) => s + b.gstAmount, 0);
+    const totalDisc = bills.reduce((s, b) => s + b.discount, 0);
+    tfoot.innerHTML =
+      '<tr class="total-row">' +
+        '<td colspan="4">TOTAL (' + bills.length + ' bill' + (bills.length > 1 ? 's' : '') + ')</td>' +
+        '<td class="num"></td>' +
+        '<td class="num">' + money(totalGST) + '</td>' +
+        '<td class="num">' + money(totalDisc) + '</td>' +
+        '<td class="num">' + money(totalRev) + '</td>' +
+      '</tr>';
+  }
+
+  function updateCards(bills) {
+    const revenue = bills.reduce((s, b) => s + b.grandTotal, 0);
+    const items   = bills.reduce((s, b) => s + (b.items ? b.items.reduce((si, i) => si + i.quantity, 0) : 0), 0);
+    const avg     = bills.length ? revenue / bills.length : 0;
+    document.getElementById('sc-revenue').textContent = money(revenue);
+    document.getElementById('sc-bills').textContent   = bills.length;
+    document.getElementById('sc-items').textContent   = items;
+    document.getElementById('sc-avg').textContent     = money(avg);
+  }
+
+  function loadReport() {
+    const qs = buildQuery();
+    api('/bills/filter?' + qs)
+      .then(bills => {
+        updateCards(bills);
+        buildRevChart(bills);
+        buildPayChart(bills);
+        renderTable(bills);
+      })
+      .catch(e => showMsg(e.message, false));
+  }
+
+  document.getElementById('btnApply').addEventListener('click', loadReport);
+
+  document.getElementById('btnReset').addEventListener('click', function() {
+    document.getElementById('fromDate').value   = d30.toISOString().slice(0,10);
+    document.getElementById('toDate').value     = today.toISOString().slice(0,10);
+    document.getElementById('custFilter').value = '';
+    document.getElementById('modeFilter').value = '';
+    loadReport();
+  });
+
+  document.getElementById('btnExport').addEventListener('click', function() {
+    window.location.href = '/api/bills/export?' + buildQuery();
+  });
+
+  // Load on page open
+  loadReport();
+</script>
+</body>
+</html>

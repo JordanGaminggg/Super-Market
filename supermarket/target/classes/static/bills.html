@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SuperMart Bill History — view, filter and export all past invoices.">
+  <title>Bill History — SuperMart</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+<div class="container">
+  <div id="msg" class="msg"></div>
+
+  <!-- ── Filters ── -->
+  <div class="card">
+    <h2>📋 Bill History</h2>
+    <div class="form-row">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px">
+        <label style="font-size:12px;color:var(--text-secondary);font-weight:500">From Date</label>
+        <input id="from" type="date">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px">
+        <label style="font-size:12px;color:var(--text-secondary);font-weight:500">To Date</label>
+        <input id="to" type="date">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px">
+        <label style="font-size:12px;color:var(--text-secondary);font-weight:500">Customer</label>
+        <input id="cusFilter" placeholder="Customer name...">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px">
+        <label style="font-size:12px;color:var(--text-secondary);font-weight:500">Payment</label>
+        <select id="modeFilter">
+          <option value="">All Modes</option>
+          <option>Cash</option><option>UPI</option><option>Card</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button onclick="loadBills()">🔍 Search</button>
+      <button class="gray" onclick="clearFilters()">✕ Clear Filters</button>
+      <button onclick="exportCsv()" style="background:linear-gradient(135deg,#2563eb,#60a5fa)">⬇ Export CSV</button>
+      <span id="bill-count" style="color:var(--text-muted);font-size:13px;margin-left:auto"></span>
+    </div>
+  </div>
+
+  <!-- ── Bill Table ── -->
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Bill No</th><th>Date & Time</th><th>Customer</th>
+          <th>Payment</th><th class="num">Total</th><th class="num">Action</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <!-- ── Invoice Preview ── -->
+  <div class="card" id="invoiceBox" style="display:none">
+    <h2>🧾 Invoice Preview</h2>
+    <div id="invoice"></div><br>
+    <div style="text-align:center;display:flex;gap:10px;justify-content:center">
+      <button onclick="window.print()">🖨 Print Invoice</button>
+      <button class="gray" onclick="document.getElementById('invoiceBox').style.display='none'">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+  renderNav('📋 Bill History');
+  let bills = [];
+
+  async function loadBills() {
+    const params = new URLSearchParams();
+    const from = document.getElementById('from').value;
+    const to   = document.getElementById('to').value;
+    const cus  = document.getElementById('cusFilter').value;
+    const mode = document.getElementById('modeFilter').value;
+    if (from) params.set('from', from);
+    if (to)   params.set('to',   to);
+    if (cus)  params.set('customer', cus);
+    if (mode) params.set('mode', mode);
+
+    const hasFilter = from || to || cus || mode;
+    bills = await api('/bills' + (hasFilter ? '/filter?' + params : ''));
+
+    document.getElementById('rows').innerHTML = bills.map(b => `<tr>
+      <td><strong>#${b.id}</strong></td>
+      <td style="white-space:nowrap">${fmtDate(b.billDate)}</td>
+      <td>${b.customerName || '<span style="color:var(--text-muted)">Walk-in</span>'}</td>
+      <td>${payBadge(b.paymentMode)}</td>
+      <td class="num"><strong>${money(b.grandTotal)}</strong></td>
+      <td class="num"><button class="small" onclick="viewBill(${b.id})">👁 View</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">No bills found</td></tr>';
+
+    document.getElementById('bill-count').textContent = `${bills.length} bill${bills.length !== 1 ? 's' : ''} found`;
+  }
+
+  function viewBill(id) {
+    const b = bills.find(x => x.id === id);
+    document.getElementById('invoice').innerHTML = invoiceHtml(b);
+    const box = document.getElementById('invoiceBox');
+    box.style.display = 'block';
+    box.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function clearFilters() {
+    ['from','to','cusFilter'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('modeFilter').value = '';
+    loadBills();
+  }
+
+  function exportCsv() {
+    const params = new URLSearchParams();
+    const from = document.getElementById('from').value;
+    const to   = document.getElementById('to').value;
+    const cus  = document.getElementById('cusFilter').value;
+    const mode = document.getElementById('modeFilter').value;
+    if (from) params.set('from', from);
+    if (to)   params.set('to',   to);
+    if (cus)  params.set('customer', cus);
+    if (mode) params.set('mode', mode);
+    window.location.href = '/api/bills/export?' + params.toString();
+  }
+
+  // Keyboard: Enter to search
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') loadBills(); });
+
+  loadBills();
+</script>
+</body>
+</html>

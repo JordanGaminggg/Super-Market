@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SuperMart Dashboard — track daily sales, bills, and low stock alerts in real time.">
+  <title>Dashboard — SuperMart</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<nav id="nav">
+  <!-- Logout button appended via JS after nav links -->
+</nav>
+<div class="container">
+  <h2>🏠 Dashboard</h2>
+
+  <!-- ── Stat Cards ── -->
+  <div class="stats">
+    <div class="stat">
+      <small>Today's Sales</small>
+      <h3 id="sales">₹0.00</h3>
+      <span class="stat-icon">💰</span>
+    </div>
+    <div class="stat">
+      <small>Bills Today</small>
+      <h3 id="billsToday">0</h3>
+      <span class="stat-icon">🧾</span>
+    </div>
+    <div class="stat">
+      <small>Total Bills</small>
+      <h3 id="billsTotal">0</h3>
+      <span class="stat-icon">📊</span>
+    </div>
+    <div class="stat">
+      <small>Total Products</small>
+      <h3 id="products">0</h3>
+      <span class="stat-icon">📦</span>
+    </div>
+  </div>
+
+  <!-- ── Charts Row ── -->
+  <div class="grid2" style="margin-bottom:20px">
+    <!-- Sales Line Chart -->
+    <div class="card" style="min-height:280px">
+      <h2 style="margin-bottom:14px">📈 Sales — Last 30 Days</h2>
+      <div style="position:relative;height:220px">
+        <canvas id="salesChart"></canvas>
+        <p id="noSalesData" style="display:none;text-align:center;color:var(--text-muted);padding-top:60px">
+          No sales data yet. Start billing to see the chart!
+        </p>
+      </div>
+    </div>
+    <!-- Top Products Bar Chart -->
+    <div class="card" style="min-height:280px">
+      <h2 style="margin-bottom:14px">🏆 Top Products — Last 30 Days</h2>
+      <div style="position:relative;height:220px">
+        <canvas id="topChart"></canvas>
+        <p id="noTopData" style="display:none;text-align:center;color:var(--text-muted);padding-top:60px">
+          No data yet. Generate bills to track top products!
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Low Stock Alert ── -->
+  <div class="card">
+    <h2>⚠️ Low Stock Alert</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Category</th>
+          <th class="num">Stock</th>
+        </tr>
+      </thead>
+      <tbody id="low"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+  renderNav('🏠 Dashboard');
+
+  // Add Logout button to nav
+  document.getElementById('nav').insertAdjacentHTML('beforeend',
+    `<a href="/logout" style="margin-left:auto;color:#f87171" title="Logout">⏻ Logout</a>`);
+
+  // ── Load dashboard stats ──────────────────────────────────────────
+  api('/dashboard').then(d => {
+    document.getElementById('sales').textContent      = money(d.todaySales);
+    document.getElementById('billsToday').textContent = d.todayBills;
+    document.getElementById('billsTotal').textContent = d.totalBills;
+    document.getElementById('products').textContent   = d.totalProducts;
+    document.getElementById('low').innerHTML = d.lowStock.length
+      ? d.lowStock.map(p => `<tr>
+          <td><strong>${p.name}</strong></td>
+          <td>${p.category ? `<span class="badge badge-cat">${p.category}</span>` : '—'}</td>
+          <td class="num low">${p.stock} ⚠</td>
+        </tr>`).join('')
+      : '<tr><td colspan="3" style="text-align:center;color:var(--green-400);padding:20px">✅ All products are well stocked!</td></tr>';
+  });
+
+  // ── Chart.js shared defaults ──────────────────────────────────────
+  const GRID_COLOR  = 'rgba(255,255,255,0.06)';
+  const LABEL_COLOR = '#8b949e';
+  Chart.defaults.color = LABEL_COLOR;
+  Chart.defaults.font.family = "'Inter', 'Segoe UI', sans-serif";
+
+  // ── Sales Line Chart ──────────────────────────────────────────────
+  api('/dashboard/chart').then(({ labels, data }) => {
+    if (!labels.length) {
+      document.getElementById('salesChart').style.display = 'none';
+      document.getElementById('noSalesData').style.display = 'block';
+      return;
+    }
+    new Chart(document.getElementById('salesChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Revenue (₹)',
+          data,
+          borderColor: '#4ade80',
+          backgroundColor: 'rgba(74,222,128,0.08)',
+          borderWidth: 2.5,
+          pointBackgroundColor: '#4ade80',
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.4,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ' ₹' + Number(ctx.raw).toFixed(2)
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: GRID_COLOR },
+            ticks: {
+              maxTicksLimit: 8,
+              callback: function(val, idx) {
+                // show only day-month
+                const d = new Date(this.getLabelForValue(val));
+                return d.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+              }
+            }
+          },
+          y: {
+            grid: { color: GRID_COLOR },
+            ticks: { callback: v => '₹' + v }
+          }
+        }
+      }
+    });
+  });
+
+  // ── Top Products Bar Chart ────────────────────────────────────────
+  api('/dashboard/top-products').then(({ labels, data }) => {
+    if (!labels.length) {
+      document.getElementById('topChart').style.display = 'none';
+      document.getElementById('noTopData').style.display = 'block';
+      return;
+    }
+    const COLORS = ['#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa'];
+    new Chart(document.getElementById('topChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Revenue (₹)',
+          data,
+          backgroundColor: labels.map((_, i) => COLORS[i % COLORS.length] + 'cc'),
+          borderColor:      labels.map((_, i) => COLORS[i % COLORS.length]),
+          borderWidth: 1.5,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: ctx => ' ₹' + Number(ctx.raw).toFixed(2) }
+          }
+        },
+        scales: {
+          x: { grid: { color: GRID_COLOR } },
+          y: { grid: { color: GRID_COLOR }, ticks: { callback: v => '₹' + v } }
+        }
+      }
+    });
+  });
+</script>
+</body>
+</html>
